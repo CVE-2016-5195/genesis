@@ -13,6 +13,7 @@ type GoalStatus string
 
 const (
 	StatusPending    GoalStatus = "pending"
+	StatusPlanning   GoalStatus = "planning"
 	StatusInProgress GoalStatus = "in-progress"
 	StatusCompleted  GoalStatus = "completed"
 	StatusFailed     GoalStatus = "failed"
@@ -23,7 +24,8 @@ type Goal struct {
 	ID          int        `json:"id"`
 	Description string     `json:"description"`
 	Status      GoalStatus `json:"status"`
-	Generation  int        `json:"generation"` // generation when created
+	Generation  int        `json:"generation"`         // generation when created
+	Approach    string     `json:"approach,omitempty"` // selected implementation approach
 }
 
 // GoalManager handles loading, saving, and querying goals.
@@ -82,7 +84,7 @@ func (gm *GoalManager) save() error {
 	return os.Rename(tmp, gm.filePath)
 }
 
-// AddGoal creates a new goal with pending status and persists it.
+// AddGoal creates a new goal with planning status and persists it.
 func (gm *GoalManager) AddGoal(description string, generation int) (Goal, error) {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
@@ -90,7 +92,7 @@ func (gm *GoalManager) AddGoal(description string, generation int) (Goal, error)
 	g := Goal{
 		ID:          gm.nextID,
 		Description: description,
-		Status:      StatusPending,
+		Status:      StatusPlanning,
 		Generation:  generation,
 	}
 	gm.nextID++
@@ -122,13 +124,13 @@ func (gm *GoalManager) AllGoals() []Goal {
 	return out
 }
 
-// HasPendingOrInProgress returns true if any goal is pending or in-progress.
+// HasPendingOrInProgress returns true if any goal is pending, planning, or in-progress.
 func (gm *GoalManager) HasPendingOrInProgress() bool {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
 
 	for _, g := range gm.goals {
-		if g.Status == StatusPending || g.Status == StatusInProgress {
+		if g.Status == StatusPending || g.Status == StatusPlanning || g.Status == StatusInProgress {
 			return true
 		}
 	}
@@ -170,6 +172,48 @@ func (gm *GoalManager) Count() int {
 	return len(gm.goals)
 }
 
+// SetApproach sets the approach for a goal by ID and transitions it to in-progress.
+func (gm *GoalManager) SetApproach(id int, approach string) error {
+	gm.mu.Lock()
+	defer gm.mu.Unlock()
+
+	for i := range gm.goals {
+		if gm.goals[i].ID == id {
+			gm.goals[i].Approach = approach
+			gm.goals[i].Status = StatusInProgress
+			return gm.save()
+		}
+	}
+	return fmt.Errorf("goal %d not found", id)
+}
+
+// PlanningGoals returns all goals with planning status.
+func (gm *GoalManager) PlanningGoals() []Goal {
+	gm.mu.Lock()
+	defer gm.mu.Unlock()
+
+	var out []Goal
+	for _, g := range gm.goals {
+		if g.Status == StatusPlanning {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+// NeedsPlanning returns true if any goal is in planning status.
+func (gm *GoalManager) NeedsPlanning() bool {
+	gm.mu.Lock()
+	defer gm.mu.Unlock()
+
+	for _, g := range gm.goals {
+		if g.Status == StatusPlanning {
+			return true
+		}
+	}
+	return false
+}
+
 // GoalsSummary returns a formatted string of all goals.
 func (gm *GoalManager) GoalsSummary() string {
 	gm.mu.Lock()
@@ -186,10 +230,15 @@ func (gm *GoalManager) GoalsSummary() string {
 			marker = "+"
 		case StatusInProgress:
 			marker = ">"
+		case StatusPlanning:
+			marker = "?"
 		case StatusFailed:
 			marker = "!"
 		}
 		s += fmt.Sprintf("  [%s] #%d: %s (%s)\n", marker, g.ID, g.Description, g.Status)
+		if g.Approach != "" {
+			s += fmt.Sprintf("       Approach: %s\n", g.Approach)
+		}
 	}
 	return s
 }

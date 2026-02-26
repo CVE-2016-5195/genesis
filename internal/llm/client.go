@@ -36,6 +36,19 @@ type MutationPlan struct {
 	FitnessImprovementEstimate float64    `json:"fitness_improvement_estimate"`
 }
 
+// ApproachOption describes one possible implementation approach proposed by the LLM.
+type ApproachOption struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Pros        []string `json:"pros"`
+	Cons        []string `json:"cons"`
+}
+
+// ApproachResponse is the structured JSON the LLM returns for approach planning.
+type ApproachResponse struct {
+	Approaches []ApproachOption `json:"approaches"`
+}
+
 // Client talks to an OpenAI-compatible LLM backend.
 type Client struct {
 	BaseURL string // e.g. "http://localhost:11434/v1" or "https://api.kimi.com/coding/v1"
@@ -98,6 +111,7 @@ type ModelInfo struct {
 // systemPromptTemplate is the core system prompt for Genesis-HS.
 const systemPromptTemplate = `You are Genesis-HS, a human-steered self-improving Go agent.
 Current goals: %s
+Selected approach: %s
 Current version: %d
 Fitness score: %.2f
 
@@ -119,14 +133,15 @@ Rules:
 - For "append" action: content is appended to the file.
 - For "replace" action: old_content is found and replaced with content.
 - For "delete" action: the file is removed.
+- Follow the selected approach when implementing changes.
 - Focus on the highest-priority pending or in-progress goal.
 - Make small, incremental, testable changes.
 - Ensure all Go code compiles. Use only stdlib unless adding a dependency is clearly justified.
 - Never output anything except valid JSON.`
 
 // RequestMutationPlans asks the LLM for N candidate mutation plans in parallel.
-func (c *Client) RequestMutationPlans(goals string, version int, fitness float64, sourceContext string, n int) ([]MutationPlan, error) {
-	systemPrompt := fmt.Sprintf(systemPromptTemplate, goals, version, fitness)
+func (c *Client) RequestMutationPlans(goals string, approach string, version int, fitness float64, sourceContext string, n int) ([]MutationPlan, error) {
+	systemPrompt := fmt.Sprintf(systemPromptTemplate, goals, approach, version, fitness)
 
 	userPrompt := fmt.Sprintf(`Here is the current source tree:
 
@@ -271,4 +286,109 @@ func (c *Client) ListModels() ([]ModelInfo, error) {
 	}
 
 	return modelsResp.Data, nil
+}
+
+// approachSystemPrompt is the system prompt for the planning phase.
+const approachSystemPrompt = `You are Genesis-HS, a human-steered self-improving Go agent.
+You are in PLANNING mode. The user has a goal, and you must propose exactly 4 different
+implementation approaches for achieving it.
+
+Constraints:
+- The project is a pure Go binary (stdlib only, no external deps unless strongly justified).
+- All approaches must be feasible within a single Go binary.
+- Each approach should be meaningfully different from the others.
+- Be creative but practical.
+
+You must output ONLY valid JSON with this exact schema:
+{
+  "approaches": [
+    {
+      "title": "Short title (3-7 words)",
+      "description": "2-4 sentence description of the approach, what it builds, how it works",
+      "pros": ["advantage 1", "advantage 2"],
+      "cons": ["disadvantage 1", "disadvantage 2"]
+    }
+  ]
+}
+
+Output exactly 4 approaches. Never output anything except valid JSON.`
+
+// RequestApproachOptions asks the LLM to propose 4 implementation approaches for a goal.
+func (c *Client) RequestApproachOptions(goalDescription string) ([]ApproachOption, error) {
+	userPrompt := fmt.Sprintf(`Goal: %s
+
+Propose 4 different implementation approaches for this goal. Each should be a meaningfully different strategy.`, goalDescription)
+
+	resp, err := c.chatCompletionRaw(approachSystemPrompt, userPrompt, 0.8)
+	if err != nil {
+		return nil, fmt.Errorf("approach request: %w", err)
+	}
+
+	var parsed ApproachResponse
+	if err := json.Unmarshal([]byte(resp), &parsed); err != nil {
+		return nil, fmt.Errorf("parse approach response: %w (raw: %s)", err, resp)
+	}
+
+	if len(parsed.Approaches) == 0 {
+		return nil, fmt.Errorf("LLM returned no approaches")
+	}
+
+	return parsed.Approaches, nil
+}
+
+// chatCompletionRaw sends a chat completion and returns the raw content string.
+func (c *Client) chatCompletionRaw(systemPrompt, userPrompt string, temperature float64) (string, error) {
+	reqBody := chatRequest{
+		Model: c.Model,
+		Messages: []chatMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userPrompt},
+		},
+		Temperature: temperature,
+		ResponseFormat: &respFormat{
+			Type: "json_object",
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.BaseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "KimiCLI/1.0")
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+
+	httpClient := &http.Client{Timeout: c.Timeout}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("LLM returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var chatResp chatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
+
+	if chatResp.Error != nil {
+		return "", fmt.Errorf("LLM error: %s", chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("LLM returned no choices")
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
 }

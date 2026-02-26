@@ -36,7 +36,7 @@ const (
 	// ImprovementThreshold is the minimum % improvement required to accept a candidate.
 	ImprovementThreshold = 5.0
 	// InitialGoal is the first goal created on a fresh start.
-	InitialGoal = "Build a high-quality, intuitive user interaction interface (rich TUI with BubbleTea or web dashboard on :8080). Once complete, switch to Listen Mode and wait for user input."
+	InitialGoal = "Build a user interaction interface for Genesis-HS that allows users to interact with the agent, view status, submit goals, and monitor evolution progress."
 )
 
 // Engine is the central controller for Genesis-HS.
@@ -79,7 +79,19 @@ func (e *Engine) Run() {
 			fmt.Printf("[genesis] ERROR: Failed to create initial goal: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("[genesis] Goal #1 created.\n")
+		fmt.Printf("[genesis] Goal #1 created (needs planning).\n")
+	}
+
+	// Planning phase: if any goal needs an approach, run interactive planning
+	if e.Goals.NeedsPlanning() {
+		fmt.Println("[genesis] Goals need planning. Running planning phase...")
+		if err := e.runPlanningPhase(); err != nil {
+			fmt.Printf("[genesis] Planning error: %v\n", err)
+			fmt.Println("[genesis] Switching to Listen Mode.")
+			e.Mode = ModeListen
+			e.runListenMode()
+			return
+		}
 	}
 
 	// Determine mode based on goal status
@@ -102,6 +114,79 @@ func (e *Engine) printBanner() {
 	fmt.Printf("  ║     Generation: %-22d ║\n", e.Generation)
 	fmt.Println("  ╚═══════════════════════════════════════╝")
 	fmt.Println()
+}
+
+// runPlanningPhase handles interactive approach selection for goals in planning status.
+func (e *Engine) runPlanningPhase() error {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		planning := e.Goals.PlanningGoals()
+		if len(planning) == 0 {
+			return nil
+		}
+
+		goal := planning[0]
+		fmt.Println()
+		fmt.Printf("[planning] Goal #%d: %s\n", goal.ID, goal.Description)
+		fmt.Println("[planning] Asking LLM to propose implementation approaches...")
+		fmt.Println("[planning] (This may take a few minutes with reasoning models...)")
+		fmt.Println()
+
+		approaches, err := e.LLM.RequestApproachOptions(goal.Description)
+		if err != nil {
+			return fmt.Errorf("LLM approach request for goal #%d: %w", goal.ID, err)
+		}
+
+		// Display approaches
+		fmt.Println("[planning] ════════════════════════════════════════")
+		fmt.Printf("[planning] %d approaches proposed for Goal #%d:\n", len(approaches), goal.ID)
+		fmt.Println("[planning] ════════════════════════════════════════")
+		fmt.Println()
+
+		for i, a := range approaches {
+			fmt.Printf("  [%d] %s\n", i+1, a.Title)
+			fmt.Printf("      %s\n", a.Description)
+			if len(a.Pros) > 0 {
+				fmt.Printf("      Pros:  %s\n", strings.Join(a.Pros, ", "))
+			}
+			if len(a.Cons) > 0 {
+				fmt.Printf("      Cons:  %s\n", strings.Join(a.Cons, ", "))
+			}
+			fmt.Println()
+		}
+
+		fmt.Printf("Pick an approach (1-%d), or 'r' to regenerate: ", len(approaches))
+
+		if !scanner.Scan() {
+			return fmt.Errorf("stdin closed during planning")
+		}
+
+		input := strings.TrimSpace(scanner.Text())
+
+		if input == "r" || input == "R" {
+			fmt.Println("[planning] Regenerating approaches...")
+			continue
+		}
+
+		// Parse selection
+		choice := 0
+		if _, err := fmt.Sscanf(input, "%d", &choice); err != nil || choice < 1 || choice > len(approaches) {
+			fmt.Printf("[planning] Invalid choice '%s'. Try again.\n", input)
+			continue
+		}
+
+		selected := approaches[choice-1]
+		approachText := fmt.Sprintf("%s: %s", selected.Title, selected.Description)
+
+		fmt.Printf("[planning] Selected: %s\n", selected.Title)
+
+		if err := e.Goals.SetApproach(goal.ID, approachText); err != nil {
+			return fmt.Errorf("save approach for goal #%d: %w", goal.ID, err)
+		}
+
+		fmt.Printf("[planning] Goal #%d is now in-progress with approach set.\n", goal.ID)
+	}
 }
 
 // runListenMode waits for user input on stdin.
@@ -139,6 +224,16 @@ func (e *Engine) runListenMode() {
 				continue
 			}
 			fmt.Printf("  Goal #%d added: %s\n", goal.ID, desc)
+
+			// Run planning phase for the new goal
+			if e.Goals.NeedsPlanning() {
+				fmt.Println("  Running planning phase...")
+				if err := e.runPlanningPhase(); err != nil {
+					fmt.Printf("  Planning error: %v\n", err)
+					continue
+				}
+			}
+
 			fmt.Println("  Switching to Forge Mode...")
 
 			// Try to restart via binary; fall back to in-process forge
@@ -180,7 +275,7 @@ func (e *Engine) runForgeMode() {
 	fmt.Println("[forge] ════════════════════════════════════")
 	fmt.Println()
 
-	// Mark first pending goal as in-progress
+	// Mark first pending goal as in-progress (skip planning goals — they go through planning phase)
 	pending := e.Goals.PendingGoals()
 	if len(pending) > 0 {
 		e.Goals.SetStatus(pending[0].ID, StatusInProgress)
@@ -278,7 +373,15 @@ func (e *Engine) runOneEvolution() (bool, error) {
 	// Step 3: Request mutation plans from LLM
 	fmt.Printf("[evo] Requesting %d candidate mutation plans from LLM...\n", NumCandidates)
 	goalsSummary := e.Goals.GoalsSummary()
-	plans, err := e.LLM.RequestMutationPlans(goalsSummary, e.Generation, currentFitness.Score, sourceCtx, NumCandidates)
+
+	// Find the current in-progress goal's approach
+	approach := ""
+	inProgress := e.Goals.InProgressGoals()
+	if len(inProgress) > 0 && inProgress[0].Approach != "" {
+		approach = inProgress[0].Approach
+	}
+
+	plans, err := e.LLM.RequestMutationPlans(goalsSummary, approach, e.Generation, currentFitness.Score, sourceCtx, NumCandidates)
 	if err != nil {
 		return false, fmt.Errorf("llm request: %w", err)
 	}

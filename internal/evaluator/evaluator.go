@@ -181,7 +181,7 @@ func evaluateFeatures(srcDir, binPath string) (float64, string) {
 	score := 0.0
 	var parts []string
 
-	// Check for HTTP server capability (web dashboard / TUI)
+	// Check for HTTP server capability
 	hasHTTP := false
 	filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -213,8 +213,47 @@ func evaluateFeatures(srcDir, binPath string) (float64, string) {
 		parts = append(parts, "http_server(+5)")
 	}
 
+	// Check for TUI capability (terminal UI patterns)
+	hasTUI := false
+	tuiPatterns := []string{
+		"terminal" + ".Clear",
+		"ansi" + " escape",
+		"tcell",
+		"bubbletea",
+		"tview",
+		"termbox",
+		"readline",
+	}
+	filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		if filepath.Ext(path) != ".go" {
+			return nil
+		}
+		if strings.HasSuffix(path, "evaluator.go") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		content := strings.ToLower(string(data))
+		for _, pat := range tuiPatterns {
+			if strings.Contains(content, pat) {
+				hasTUI = true
+				break
+			}
+		}
+		return nil
+	})
+
+	if hasTUI {
+		score += 5.0
+		parts = append(parts, "tui_detected(+5)")
+	}
+
 	// Quick smoke test: try running the binary briefly to see if it starts
-	// and check if it opens a port
 	if hasHTTP {
 		if portOpen := quickPortCheck(binPath); portOpen {
 			score += 5.0
@@ -232,8 +271,8 @@ func evaluateFeatures(srcDir, binPath string) (float64, string) {
 	return score, "features: " + strings.Join(parts, ",")
 }
 
-// quickPortCheck tries to start the binary briefly and see if port 8080 opens.
-// Returns quickly; this is a best-effort check.
+// quickPortCheck tries to start the binary briefly and see if it opens a port.
+// Checks common ports. Returns quickly; this is a best-effort check.
 func quickPortCheck(binPath string) bool {
 	cmd := exec.Command(binPath)
 	cmd.Env = append(os.Environ(), "GENESIS_SMOKE_TEST=1")
@@ -247,18 +286,21 @@ func quickPortCheck(binPath string) bool {
 	// Give it a moment to start
 	time.Sleep(500 * time.Millisecond)
 
-	// Check if port 8080 is open
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:8080", 500*time.Millisecond)
-	if err == nil {
-		conn.Close()
-		cmd.Process.Kill()
-		cmd.Wait()
-		return true
+	// Check common ports
+	ports := []string{"8080", "8081", "8090", "3000", "9000", "8000"}
+	found := false
+	for _, port := range ports {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:"+port, 200*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			found = true
+			break
+		}
 	}
 
 	cmd.Process.Kill()
 	cmd.Wait()
-	return false
+	return found
 }
 
 // QuickBuildTest does a fast compile check without full evaluation.
