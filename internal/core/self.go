@@ -1,11 +1,13 @@
 package core
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -187,4 +189,153 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(out, in)
 	return err
+}
+
+// VirginReset restores Genesis-HS to a clean state by removing all
+// evolution artifacts, goals, fitness history, and archived binaries.
+// Prompts the user for confirmation before proceeding.
+func VirginReset(projectRoot string) {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	fmt.Println()
+	fmt.Println("  ┌───────────────────────────────────────────┐")
+	fmt.Println("  │        Genesis-HS — Virgin Reset           │")
+	fmt.Println("  └───────────────────────────────────────────┘")
+	fmt.Println()
+	fmt.Println("  This will DELETE all evolution state:")
+	fmt.Println()
+
+	// Show what exists
+	items := []struct {
+		path string
+		desc string
+	}{
+		{filepath.Join(projectRoot, "mission", "active.json"), "Goals & approaches"},
+		{filepath.Join(projectRoot, "mission", "fitness.json"), "Fitness history"},
+		{filepath.Join(projectRoot, "archive"), "Archived binaries"},
+		{filepath.Join(projectRoot, "genesis"), "Compiled binary"},
+		{filepath.Join(projectRoot, "config.json"), "LLM configuration"},
+	}
+
+	found := 0
+	for _, item := range items {
+		info, err := os.Stat(item.path)
+		if err != nil {
+			continue
+		}
+		found++
+		if info.IsDir() {
+			entries, _ := os.ReadDir(item.path)
+			fmt.Printf("    - %s (%s, %d entries)\n", item.desc, item.path, len(entries))
+		} else {
+			fmt.Printf("    - %s (%s, %d bytes)\n", item.desc, item.path, info.Size())
+		}
+	}
+
+	// Check for /tmp/genesis-child-* leftovers
+	for i := 0; i < 10; i++ {
+		childDir := fmt.Sprintf("/tmp/genesis-child-%d", i)
+		if _, err := os.Stat(childDir); err == nil {
+			found++
+			fmt.Printf("    - Candidate work dir (%s)\n", childDir)
+		}
+	}
+
+	if found == 0 {
+		fmt.Println("    (nothing to clean — already in virgin state)")
+		fmt.Println()
+		return
+	}
+
+	fmt.Println()
+	fmt.Print("  Keep LLM config (config.json)? [Y/n]: ")
+	keepConfig := true
+	if scanner.Scan() {
+		answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+		if answer == "n" || answer == "no" {
+			keepConfig = false
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("  WARNING: This cannot be undone.")
+	fmt.Print("  Type 'yes' to confirm virgin reset: ")
+	if !scanner.Scan() {
+		fmt.Println("  Aborted.")
+		return
+	}
+	confirm := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	if confirm != "yes" {
+		fmt.Println("  Aborted.")
+		return
+	}
+
+	fmt.Println()
+
+	// Delete state files
+	stateFiles := []string{
+		filepath.Join(projectRoot, "mission", "active.json"),
+		filepath.Join(projectRoot, "mission", "active.json.tmp"),
+		filepath.Join(projectRoot, "mission", "fitness.json"),
+		filepath.Join(projectRoot, "mission", "fitness.json.tmp"),
+		filepath.Join(projectRoot, "genesis"),
+		filepath.Join(projectRoot, "genesis.new"),
+		filepath.Join(projectRoot, "genesis.tmp"),
+	}
+
+	if !keepConfig {
+		stateFiles = append(stateFiles,
+			filepath.Join(projectRoot, "config.json"),
+			filepath.Join(projectRoot, "config.json.tmp"),
+		)
+	}
+
+	for _, f := range stateFiles {
+		if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+			fmt.Printf("  [warn] Could not remove %s: %v\n", f, err)
+		} else if err == nil {
+			fmt.Printf("  Removed: %s\n", f)
+		}
+	}
+
+	// Delete archive directory contents
+	archiveDir := filepath.Join(projectRoot, "archive")
+	if entries, err := os.ReadDir(archiveDir); err == nil {
+		for _, e := range entries {
+			p := filepath.Join(archiveDir, e.Name())
+			if err := os.Remove(p); err != nil {
+				fmt.Printf("  [warn] Could not remove %s: %v\n", p, err)
+			} else {
+				fmt.Printf("  Removed: %s\n", p)
+			}
+		}
+	}
+
+	// Delete tmp directory contents
+	tmpDir := filepath.Join(projectRoot, "tmp")
+	if entries, err := os.ReadDir(tmpDir); err == nil {
+		for _, e := range entries {
+			p := filepath.Join(tmpDir, e.Name())
+			os.RemoveAll(p)
+		}
+		fmt.Printf("  Cleaned: %s\n", tmpDir)
+	}
+
+	// Delete /tmp/genesis-child-* directories
+	for i := 0; i < 10; i++ {
+		childDir := fmt.Sprintf("/tmp/genesis-child-%d", i)
+		if err := os.RemoveAll(childDir); err == nil {
+			if _, statErr := os.Stat(childDir); statErr != nil {
+				// was removed
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("  Virgin reset complete.")
+	if keepConfig {
+		fmt.Println("  LLM configuration preserved (config.json).")
+	}
+	fmt.Println("  Run './genesis' to start fresh.")
+	fmt.Println()
 }

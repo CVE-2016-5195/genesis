@@ -23,20 +23,23 @@ func main() {
 		case "configure":
 			configure.Run(projectRoot)
 			return
+		case "virgin":
+			core.VirginReset(projectRoot)
+			return
 		default:
 			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
-			fmt.Fprintf(os.Stderr, "Usage: genesis [configure]\n")
+			fmt.Fprintf(os.Stderr, "Usage: genesis [configure|virgin]\n")
 			os.Exit(1)
 		}
 	}
 
 	engine := core.NewEngine(projectRoot)
-	
+
 	// Start web dashboard
 	webServer := web.NewDashboardServer(engine.Goals)
 	webServer.SetEngine(engine)
 	engine.EventCallback = webServer.BroadcastEvent
-	
+
 	go func() {
 		addr := ":8080"
 		fmt.Printf("[web] Starting dashboard on http://localhost%s\n", addr)
@@ -44,7 +47,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "[web] Server error: %v\n", err)
 		}
 	}()
-	
+
 	engine.Run()
 }
 
