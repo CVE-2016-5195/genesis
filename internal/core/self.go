@@ -76,13 +76,23 @@ func BuildBinaryInDir(srcDir, outputPath string) error {
 func AtomicReplaceBinary(projectRoot, newBinaryPath string) error {
 	targetPath := filepath.Join(projectRoot, "genesis")
 
-	// Copy to a temp file next to the target first (same filesystem for rename)
-	tmpPath := targetPath + ".new"
+	// Copy to a temp file next to the target first (same filesystem for rename).
+	// Use .tmp suffix to avoid collision with genesis.new build output.
+	tmpPath := targetPath + ".tmp"
 	src, err := os.Open(newBinaryPath)
 	if err != nil {
 		return fmt.Errorf("open new binary: %w", err)
 	}
 	defer src.Close()
+
+	// Verify the source is not empty
+	srcInfo, err := src.Stat()
+	if err != nil {
+		return fmt.Errorf("stat new binary: %w", err)
+	}
+	if srcInfo.Size() == 0 {
+		return fmt.Errorf("new binary is empty (0 bytes)")
+	}
 
 	dst, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {

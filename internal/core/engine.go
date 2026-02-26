@@ -41,13 +41,15 @@ const (
 
 // Engine is the central controller for Genesis-HS.
 type Engine struct {
-	ProjectRoot string
-	Goals       *GoalManager
-	LLM         *llm.Client
-	Config      config.Config
-	Generation  int
-	Mode        Mode
-	mu          sync.Mutex
+	ProjectRoot   string
+	Goals         *GoalManager
+	FitnessHist   *FitnessHistory
+	LLM           *llm.Client
+	Config        config.Config
+	Generation    int
+	Mode          Mode
+	mu            sync.Mutex
+	EventCallback func(msg string) // Called to broadcast events to web dashboard
 }
 
 // NewEngine creates a new engine rooted at the given project directory.
@@ -61,6 +63,7 @@ func NewEngine(projectRoot string) *Engine {
 	return &Engine{
 		ProjectRoot: projectRoot,
 		Goals:       NewGoalManager(projectRoot),
+		FitnessHist: NewFitnessHistory(projectRoot),
 		LLM:         llm.NewClient(cfg),
 		Config:      cfg,
 		Generation:  1,
@@ -274,6 +277,9 @@ func (e *Engine) runForgeMode() {
 	fmt.Print(e.Goals.GoalsSummary())
 	fmt.Println("[forge] ════════════════════════════════════")
 	fmt.Println()
+	if e.EventCallback != nil {
+		e.EventCallback(`{"type": "evolution", "description": "Forge Mode started - Generation ` + fmt.Sprintf("%d", e.Generation) + `"}`)
+	}
 
 	// Mark first pending goal as in-progress (skip planning goals — they go through planning phase)
 	pending := e.Goals.PendingGoals()
@@ -309,6 +315,9 @@ func (e *Engine) runForgeMode() {
 		}
 
 		fmt.Printf("[forge] === Generation %d, Iteration %d ===\n", e.Generation, iter+1)
+		if e.EventCallback != nil {
+			e.EventCallback(fmt.Sprintf(`{"type": "evolution", "description": "Starting iteration %d"}`, iter+1))
+		}
 
 		improved, err := e.runOneEvolution()
 		if err != nil {
@@ -357,10 +366,14 @@ func (e *Engine) runOneEvolution() (bool, error) {
 
 	// Step 2: Evaluate current fitness
 	fmt.Println("[evo] Evaluating current fitness...")
+	if e.EventCallback != nil {
+		e.EventCallback(`{"type": "evolution", "description": "Evaluating current fitness"}`)
+	}
 	currentBin := filepath.Join(e.ProjectRoot, "genesis")
 
-	// Build current if not built yet
-	if _, err := os.Stat(currentBin); os.IsNotExist(err) {
+	// Build current if not built yet or if binary is empty (previous build failure)
+	binInfo, statErr := os.Stat(currentBin)
+	if os.IsNotExist(statErr) || (statErr == nil && binInfo.Size() == 0) {
 		fmt.Println("[evo] Building current binary...")
 		if err := BuildBinary(e.ProjectRoot, currentBin); err != nil {
 			return false, fmt.Errorf("build current: %w", err)
@@ -369,6 +382,13 @@ func (e *Engine) runOneEvolution() (bool, error) {
 
 	currentFitness := evaluator.Evaluate(e.ProjectRoot, currentBin)
 	fmt.Printf("[evo] Current fitness: %.2f (%s)\n", currentFitness.Score, currentFitness.Details)
+
+	// Record fitness history
+	e.FitnessHist.Record(e.Generation, currentFitness.Score, currentFitness.Details)
+
+	if e.EventCallback != nil {
+		e.EventCallback(fmt.Sprintf(`{"type": "evolution", "description": "Current fitness: %.2f", "generation": %d, "score": %.2f}`, currentFitness.Score, e.Generation, currentFitness.Score))
+	}
 
 	// Step 3: Request mutation plans from LLM
 	fmt.Printf("[evo] Requesting %d candidate mutation plans from LLM...\n", NumCandidates)
@@ -462,6 +482,9 @@ func (e *Engine) runOneEvolution() (bool, error) {
 	}
 
 	if best == nil {
+		if e.EventCallback != nil {
+			e.EventCallback(`{"type": "evolution", "description": "No viable candidates produced"}`)
+		}
 		return false, fmt.Errorf("no viable candidates produced")
 	}
 
@@ -476,17 +499,26 @@ func (e *Engine) runOneEvolution() (bool, error) {
 	fmt.Printf("[evo] Best candidate: #%d (fitness=%.2f, improvement=%.1f%%)\n",
 		best.index, best.fitness.Score, improvement)
 	fmt.Printf("[evo] Reasoning: %s\n", best.plan.Reasoning)
+	if e.EventCallback != nil {
+		e.EventCallback(fmt.Sprintf(`{"type": "evolution", "description": "Best candidate: fitness=%.2f, improvement=%.1f%%"}`, best.fitness.Score, improvement))
+	}
 
 	if improvement < ImprovementThreshold {
 		// Clean up candidate dirs
 		for i := 0; i < len(plans); i++ {
 			os.RemoveAll(fmt.Sprintf("/tmp/genesis-child-%d", i))
 		}
+		if e.EventCallback != nil {
+			e.EventCallback(fmt.Sprintf(`{"type": "evolution", "description": "Improvement %.1f%% below threshold, continuing..."}`, improvement))
+		}
 		return false, nil
 	}
 
 	// Step 6: Archive current version and apply the winner
 	fmt.Println("[evo] Improvement accepted! Archiving current version...")
+	if e.EventCallback != nil {
+		e.EventCallback(fmt.Sprintf(`{"type": "evolution", "description": "Improvement accepted! %.1f%% - Deploying new generation"}`, improvement))
+	}
 	archivePath, err := ArchiveCurrentBinary(e.ProjectRoot, e.Generation)
 	if err != nil {
 		fmt.Printf("[evo] WARNING: Archive failed: %v\n", err)

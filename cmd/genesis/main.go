@@ -7,6 +7,7 @@ import (
 
 	"genesis/internal/configure"
 	"genesis/internal/core"
+	"genesis/internal/web"
 )
 
 func main() {
@@ -30,6 +31,20 @@ func main() {
 	}
 
 	engine := core.NewEngine(projectRoot)
+	
+	// Start web dashboard
+	webServer := web.NewDashboardServer(engine.Goals)
+	webServer.SetEngine(engine)
+	engine.EventCallback = webServer.BroadcastEvent
+	
+	go func() {
+		addr := ":8080"
+		fmt.Printf("[web] Starting dashboard on http://localhost%s\n", addr)
+		if err := webServer.Start(addr); err != nil {
+			fmt.Fprintf(os.Stderr, "[web] Server error: %v\n", err)
+		}
+	}()
+	
 	engine.Run()
 }
 
