@@ -1,0 +1,13 @@
+# Binary
+/genesis
+/genesis.new
+
+# Runtime state
+mission/active.json
+config.json
+
+# Archive (local only)
+archive/
+
+# Temp
+/tmp/
