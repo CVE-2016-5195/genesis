@@ -34,7 +34,10 @@ const (
 	// NumCandidates is the number of parallel mutation candidates per generation.
 	NumCandidates = 4
 	// ImprovementThreshold is the minimum % improvement required to accept a candidate.
-	ImprovementThreshold = 5.0
+	// Set to 0 so any positive improvement is accepted (stagnation detection handles stuck loops).
+	ImprovementThreshold = 0.0
+	// StagnationLimit is the number of consecutive failed iterations before prompting the user.
+	StagnationLimit = 3
 	// InitialGoal is the first goal created on a fresh start.
 	InitialGoal = "Build a user interaction interface for Genesis-HS that allows users to interact with the agent, view status, submit goals, and monitor evolution progress."
 )
@@ -200,7 +203,7 @@ func (e *Engine) runListenMode() {
 	fmt.Println("Goals:")
 	fmt.Print(e.Goals.GoalsSummary())
 	fmt.Println()
-	fmt.Println("Commands: new goal: <description> | goals | exit")
+	fmt.Println("Commands: new goal: <description> | complete goal: <id> | goals | exit")
 	fmt.Println()
 
 	for {
@@ -252,6 +255,19 @@ func (e *Engine) runListenMode() {
 			e.runForgeMode()
 			return
 
+		case strings.HasPrefix(input, "complete goal:"):
+			idStr := strings.TrimSpace(strings.TrimPrefix(input, "complete goal:"))
+			var goalID int
+			if _, err := fmt.Sscanf(idStr, "%d", &goalID); err != nil {
+				fmt.Println("  Usage: complete goal: <id>")
+				continue
+			}
+			if err := e.Goals.SetStatus(goalID, StatusCompleted); err != nil {
+				fmt.Printf("  ERROR: %v\n", err)
+			} else {
+				fmt.Printf("  Goal #%d marked as completed.\n", goalID)
+			}
+
 		case input == "goals":
 			fmt.Println()
 			fmt.Println("Goals:")
@@ -263,7 +279,7 @@ func (e *Engine) runListenMode() {
 			os.Exit(0)
 
 		default:
-			fmt.Println("  Unknown command. Try: new goal: <desc> | goals | exit")
+			fmt.Println("  Unknown command. Try: new goal: <desc> | complete goal: <id> | goals | exit")
 		}
 	}
 }
@@ -308,6 +324,7 @@ func (e *Engine) runForgeMode() {
 	}
 
 	maxIterations := 50 // safety cap per forge session
+	stagnationCount := 0
 	for iter := 0; iter < maxIterations; iter++ {
 		if !e.Goals.HasPendingOrInProgress() {
 			fmt.Println("[forge] All goals completed!")
@@ -324,10 +341,9 @@ func (e *Engine) runForgeMode() {
 			fmt.Printf("[forge] Evolution error: %v\n", err)
 			fmt.Println("[forge] Waiting 10s before retry...")
 			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		if improved {
+			stagnationCount++
+		} else if improved {
+			stagnationCount = 0
 			fmt.Printf("[forge] Generation %d -> %d (improvement accepted)\n", e.Generation, e.Generation+1)
 			e.Generation++
 
@@ -339,7 +355,38 @@ func (e *Engine) runForgeMode() {
 				}
 			}
 		} else {
-			fmt.Println("[forge] No sufficient improvement found this iteration.")
+			stagnationCount++
+			fmt.Printf("[forge] No improvement found (stagnation %d/%d).\n", stagnationCount, StagnationLimit)
+		}
+
+		// Stagnation detection: prompt user after N consecutive failures
+		if stagnationCount >= StagnationLimit {
+			action := e.handleStagnation()
+			switch action {
+			case "complete":
+				// Mark all in-progress goals as completed
+				for _, g := range e.Goals.InProgressGoals() {
+					e.Goals.SetStatus(g.ID, StatusCompleted)
+					fmt.Printf("[forge] Goal #%d marked complete by user.\n", g.ID)
+				}
+				stagnationCount = 0
+			case "listen":
+				fmt.Println("[forge] Switching to Listen Mode by user request.")
+				e.Mode = ModeListen
+				e.runListenMode()
+				return
+			case "continue":
+				stagnationCount = 0
+				fmt.Println("[forge] Continuing forge loop...")
+			}
+
+			if !e.Goals.HasPendingOrInProgress() {
+				fmt.Println("[forge] All goals completed!")
+				break
+			}
+		}
+
+		if !improved {
 			time.Sleep(2 * time.Second)
 		}
 	}
@@ -348,6 +395,45 @@ func (e *Engine) runForgeMode() {
 	e.Mode = ModeListen
 	fmt.Println("[genesis] Switching to Listen Mode.")
 	e.runListenMode()
+}
+
+// handleStagnation prompts the user when the EvoLoop is stuck.
+// Returns "complete", "listen", or "continue".
+func (e *Engine) handleStagnation() string {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	fmt.Println()
+	fmt.Println("[forge] ════════════════════════════════════════")
+	fmt.Printf("[forge] Stagnation detected: %d consecutive iterations with no improvement.\n", StagnationLimit)
+	fmt.Println("[forge] Current in-progress goals:")
+	for _, g := range e.Goals.InProgressGoals() {
+		fmt.Printf("[forge]   #%d: %s\n", g.ID, g.Description)
+	}
+	fmt.Println("[forge] ════════════════════════════════════════")
+	fmt.Println()
+	fmt.Println("  Options:")
+	fmt.Println("    c) Mark current goal(s) as COMPLETE and move on")
+	fmt.Println("    l) Switch to Listen Mode (pause forging)")
+	fmt.Println("    r) Reset counter and keep trying")
+	fmt.Println()
+
+	for {
+		fmt.Print("  Choice [c/l/r]: ")
+		if !scanner.Scan() {
+			return "listen"
+		}
+		input := strings.TrimSpace(strings.ToLower(scanner.Text()))
+		switch input {
+		case "c":
+			return "complete"
+		case "l":
+			return "listen"
+		case "r":
+			return "continue"
+		default:
+			fmt.Println("  Invalid choice. Enter c, l, or r.")
+		}
+	}
 }
 
 // runOneEvolution runs a single EvoLoop iteration:

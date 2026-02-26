@@ -22,6 +22,13 @@ type FitnessResult struct {
 
 // Evaluate runs the fitness suite on a candidate in the given directory.
 // The candidate binary should already be built at binPath.
+//
+// Scoring breakdown (max 100):
+//   - Compilation:  20 pts (binary exists and is non-empty)
+//   - Go vet:        5 pts (passes go vet)
+//   - Tests:        15 pts (pass=15, exist-but-fail=5, none=3)
+//   - Code quality: 30 pts (packages, files, tests, lines, diversity)
+//   - Features:     30 pts (http server, port, TUI, concurrency, config, CLI, etc.)
 func Evaluate(srcDir, binPath string) FitnessResult {
 	result := FitnessResult{}
 	var details []string
@@ -36,21 +43,21 @@ func Evaluate(srcDir, binPath string) FitnessResult {
 	result.Compiles = true
 	details = append(details, fmt.Sprintf("binary size: %d bytes", result.BinarySize))
 
-	// Score: compilation is worth 30 points
-	result.Score = 30.0
+	// Score: compilation is worth 20 points
+	result.Score = 20.0
 
-	// Check 2: Run go vet
+	// Check 2: Run go vet (5 pts)
 	vetCmd := exec.Command("go", "vet", "./...")
 	vetCmd.Dir = srcDir
 	vetOut, vetErr := vetCmd.CombinedOutput()
 	if vetErr == nil {
-		result.Score += 10.0
+		result.Score += 5.0
 		details = append(details, "go vet: passed")
 	} else {
 		details = append(details, fmt.Sprintf("go vet: failed (%s)", strings.TrimSpace(string(vetOut))))
 	}
 
-	// Check 3: Run tests if any exist
+	// Check 3: Run tests (15 pts)
 	testCmd := exec.Command("go", "test", "./...", "-count=1", "-timeout=30s")
 	testCmd.Dir = srcDir
 	testOut, testErr := testCmd.CombinedOutput()
@@ -58,22 +65,23 @@ func Evaluate(srcDir, binPath string) FitnessResult {
 
 	if testErr == nil {
 		result.TestsPassed = true
-		result.Score += 20.0
+		result.Score += 15.0
 		details = append(details, "tests: passed")
 	} else if strings.Contains(testOutput, "no test files") || strings.Contains(testOutput, "[no test files]") {
 		result.TestsPassed = true
-		result.Score += 10.0
-		details = append(details, "tests: none found (partial credit)")
+		result.Score += 3.0
+		details = append(details, "tests: none found (minimal credit)")
 	} else {
+		result.Score += 5.0
 		details = append(details, fmt.Sprintf("tests: failed (%s)", strings.TrimSpace(testOutput)))
 	}
 
-	// Check 4: Source code quality and capability breadth (up to 30 points)
+	// Check 4: Source code quality (up to 30 points)
 	qualityScore, qualityDetails := evaluateCodeQuality(srcDir)
 	result.Score += qualityScore
 	details = append(details, qualityDetails)
 
-	// Check 5: Feature detection (up to 10 points)
+	// Check 5: Feature detection (up to 30 points)
 	featureScore, featureDetails := evaluateFeatures(srcDir, binPath)
 	result.Score += featureScore
 	if featureDetails != "" {
@@ -86,12 +94,19 @@ func Evaluate(srcDir, binPath string) FitnessResult {
 
 // evaluateCodeQuality scores modular growth and code breadth.
 // Scale: 0-30 points.
+//   - Packages: 0.5pt each, max 8
+//   - Files: 0.25pt each, max 5
+//   - Test files present: +3
+//   - Test file count: 0.5pt per test file, max 4
+//   - Lines of code: tiered, max 5
+//   - Import diversity: stdlib packages used, max 5
 func evaluateCodeQuality(srcDir string) (float64, string) {
 	score := 0.0
 	goFiles := 0
+	testFiles := 0
 	totalLines := 0
-	hasTests := false
 	packages := map[string]bool{}
+	stdlibImports := map[string]bool{}
 
 	filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -108,11 +123,25 @@ func evaluateCodeQuality(srcDir string) (float64, string) {
 		if err != nil {
 			return nil
 		}
-		lines := strings.Count(string(data), "\n")
+		content := string(data)
+		lines := strings.Count(content, "\n")
 		totalLines += lines
 
 		if strings.HasSuffix(path, "_test.go") {
-			hasTests = true
+			testFiles++
+		}
+
+		// Count stdlib import diversity
+		for _, imp := range []string{
+			"net/http", "encoding/json", "sync", "os/exec",
+			"html/template", "crypto", "database/sql",
+			"io/fs", "path/filepath", "regexp", "sort",
+			"context", "embed", "reflect", "testing",
+		} {
+			// Use concatenation to avoid self-matching
+			if strings.Contains(content, "\""+imp+"\"") {
+				stdlibImports[imp] = true
+			}
 		}
 
 		return nil
@@ -120,43 +149,63 @@ func evaluateCodeQuality(srcDir string) (float64, string) {
 
 	var parts []string
 
-	// Package count: reward modular growth (1pt per package, up to 12)
-	pkgScore := float64(len(packages))
-	if pkgScore > 12.0 {
-		pkgScore = 12.0
+	// Package count: 0.5pt per package, up to 8
+	pkgScore := float64(len(packages)) * 0.5
+	if pkgScore > 8.0 {
+		pkgScore = 8.0
 	}
 	score += pkgScore
-	parts = append(parts, fmt.Sprintf("packages=%d(+%.0f)", len(packages), pkgScore))
+	parts = append(parts, fmt.Sprintf("packages=%d(+%.1f)", len(packages), pkgScore))
 
-	// File count: reward more files (0.5pt per file, up to 8)
-	fileScore := float64(goFiles) * 0.5
-	if fileScore > 8.0 {
-		fileScore = 8.0
+	// File count: 0.25pt per file, up to 5
+	fileScore := float64(goFiles) * 0.25
+	if fileScore > 5.0 {
+		fileScore = 5.0
 	}
 	score += fileScore
 	parts = append(parts, fmt.Sprintf("files=%d(+%.1f)", goFiles, fileScore))
 
-	// Tests bonus
-	if hasTests {
-		score += 5.0
-		parts = append(parts, "has_tests(+5)")
+	// Tests present bonus
+	if testFiles > 0 {
+		score += 3.0
+		parts = append(parts, "has_tests(+3)")
+
+		// Extra credit for more test files
+		testExtra := float64(testFiles) * 0.5
+		if testExtra > 4.0 {
+			testExtra = 4.0
+		}
+		score += testExtra
+		parts = append(parts, fmt.Sprintf("test_files=%d(+%.1f)", testFiles, testExtra))
 	}
 
-	// Reasonable total size
+	// Lines of code: tiered
+	lineScore := 0.0
 	if totalLines > 100 {
-		lineScore := 2.0
-		if totalLines > 500 {
-			lineScore = 3.0
-		}
-		if totalLines > 2000 {
-			lineScore = 5.0
-		}
-		if totalLines > 10000 {
-			lineScore = 3.0 // too bloated
-		}
-		score += lineScore
-		parts = append(parts, fmt.Sprintf("lines=%d(+%.0f)", totalLines, lineScore))
+		lineScore = 1.0
 	}
+	if totalLines > 500 {
+		lineScore = 2.0
+	}
+	if totalLines > 2000 {
+		lineScore = 3.0
+	}
+	if totalLines > 5000 {
+		lineScore = 5.0
+	}
+	if totalLines > 15000 {
+		lineScore = 3.0 // too bloated
+	}
+	score += lineScore
+	parts = append(parts, fmt.Sprintf("lines=%d(+%.0f)", totalLines, lineScore))
+
+	// Import diversity: 0.5pt per unique stdlib import, up to 5
+	impScore := float64(len(stdlibImports)) * 0.5
+	if impScore > 5.0 {
+		impScore = 5.0
+	}
+	score += impScore
+	parts = append(parts, fmt.Sprintf("imports=%d(+%.1f)", len(stdlibImports), impScore))
 
 	// Cap at 30
 	if score > 30.0 {
@@ -176,13 +225,22 @@ var httpServerPatterns = []string{
 }
 
 // evaluateFeatures detects specific capabilities in the binary.
-// Scale: 0-10 points.
+// Scale: 0-30 points.
+//   - HTTP server:   4 pts
+//   - Port active:   4 pts
+//   - TUI:           4 pts
+//   - Concurrency:   4 pts (goroutines, channels, sync primitives)
+//   - Config system: 3 pts (JSON config load/save)
+//   - CLI subcommands: 3 pts (os.Args parsing or flag package)
+//   - Logging:       2 pts (log package or structured logging)
+//   - Error handling: 3 pts (custom error types, error wrapping)
+//   - File I/O:      3 pts (file read/write beyond config)
 func evaluateFeatures(srcDir, binPath string) (float64, string) {
 	score := 0.0
 	var parts []string
 
-	// Check for HTTP server capability
-	hasHTTP := false
+	// Collect all Go source content (excluding evaluator itself)
+	var allContent string
 	filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
@@ -190,7 +248,6 @@ func evaluateFeatures(srcDir, binPath string) (float64, string) {
 		if filepath.Ext(path) != ".go" {
 			return nil
 		}
-		// Skip the evaluator itself
 		if strings.HasSuffix(path, "evaluator.go") {
 			return nil
 		}
@@ -198,71 +255,101 @@ func evaluateFeatures(srcDir, binPath string) (float64, string) {
 		if err != nil {
 			return nil
 		}
-		content := string(data)
-		for _, pat := range httpServerPatterns {
-			if strings.Contains(content, pat) {
-				hasHTTP = true
-				break
-			}
-		}
+		allContent += string(data) + "\n"
 		return nil
 	})
 
+	// HTTP server capability
+	hasHTTP := false
+	for _, pat := range httpServerPatterns {
+		if strings.Contains(allContent, pat) {
+			hasHTTP = true
+			break
+		}
+	}
 	if hasHTTP {
-		score += 5.0
-		parts = append(parts, "http_server(+5)")
+		score += 4.0
+		parts = append(parts, "http_server(+4)")
 	}
 
-	// Check for TUI capability (terminal UI patterns)
-	hasTUI := false
+	// Port active (smoke test)
+	if hasHTTP {
+		if portOpen := quickPortCheck(binPath); portOpen {
+			score += 4.0
+			parts = append(parts, "port_active(+4)")
+		}
+	}
+
+	// TUI capability
 	tuiPatterns := []string{
 		"terminal" + ".Clear",
 		"ansi" + " escape",
-		"tcell",
-		"bubbletea",
-		"tview",
-		"termbox",
-		"readline",
+		"tcell", "bubbletea", "tview", "termbox", "readline",
 	}
-	filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return err
-		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-		if strings.HasSuffix(path, "evaluator.go") {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		content := strings.ToLower(string(data))
-		for _, pat := range tuiPatterns {
-			if strings.Contains(content, pat) {
-				hasTUI = true
-				break
-			}
-		}
-		return nil
-	})
-
-	if hasTUI {
-		score += 5.0
-		parts = append(parts, "tui_detected(+5)")
-	}
-
-	// Quick smoke test: try running the binary briefly to see if it starts
-	if hasHTTP {
-		if portOpen := quickPortCheck(binPath); portOpen {
-			score += 5.0
-			parts = append(parts, "port_active(+5)")
+	for _, pat := range tuiPatterns {
+		if strings.Contains(strings.ToLower(allContent), pat) {
+			score += 4.0
+			parts = append(parts, "tui_detected(+4)")
+			break
 		}
 	}
 
-	if score > 10.0 {
-		score = 10.0
+	// Concurrency patterns
+	concurrencyPatterns := []string{"go func", "chan ", "sync.Mutex", "sync.WaitGroup", "sync.RWMutex"}
+	concurrencyHits := 0
+	for _, pat := range concurrencyPatterns {
+		if strings.Contains(allContent, pat) {
+			concurrencyHits++
+		}
+	}
+	if concurrencyHits > 0 {
+		concScore := float64(concurrencyHits)
+		if concScore > 4.0 {
+			concScore = 4.0
+		}
+		score += concScore
+		parts = append(parts, fmt.Sprintf("concurrency(%d patterns,+%.0f)", concurrencyHits, concScore))
+	}
+
+	// Config system (JSON config load/save)
+	if strings.Contains(allContent, "config.json") || strings.Contains(allContent, "json.Marshal") {
+		score += 3.0
+		parts = append(parts, "config_system(+3)")
+	}
+
+	// CLI subcommands
+	if strings.Contains(allContent, "os.Args") || strings.Contains(allContent, "flag.") {
+		score += 3.0
+		parts = append(parts, "cli_args(+3)")
+	}
+
+	// Logging
+	if strings.Contains(allContent, "log.Print") || strings.Contains(allContent, "log.Fatal") || strings.Contains(allContent, "log.New") {
+		score += 2.0
+		parts = append(parts, "logging(+2)")
+	}
+
+	// Error handling quality (fmt.Errorf with %w = error wrapping)
+	if strings.Contains(allContent, "fmt.Errorf") && strings.Contains(allContent, "%w") {
+		score += 3.0
+		parts = append(parts, "error_wrapping(+3)")
+	}
+
+	// File I/O beyond config
+	fileIOPatterns := []string{"os.ReadFile", "os.WriteFile", "os.Create", "os.Open"}
+	fileIOHits := 0
+	for _, pat := range fileIOPatterns {
+		if strings.Contains(allContent, pat) {
+			fileIOHits++
+		}
+	}
+	if fileIOHits >= 2 {
+		score += 3.0
+		parts = append(parts, "file_io(+3)")
+	}
+
+	if score > 30.0 {
+		score = 30.0
 	}
 
 	if len(parts) == 0 {
