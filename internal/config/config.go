@@ -13,6 +13,7 @@ type ProviderType string
 const (
 	ProviderLocal    ProviderType = "local"     // Local OpenAI-compatible (Ollama, LMStudio, etc.)
 	ProviderKimiCode ProviderType = "kimi-code" // Kimi Code API
+	ProviderZAI      ProviderType = "z-ai"      // z.ai API
 )
 
 // Config holds all persistent configuration for Genesis-HS.
@@ -37,6 +38,14 @@ func KimiCodeDefaults() Config {
 	return Config{
 		Provider: ProviderKimiCode,
 		BaseURL:  "https://api.kimi.com/coding/v1",
+	}
+}
+
+// ZAIDefaults returns default settings for z.ai.
+func ZAIDefaults() Config {
+	return Config{
+		Provider: ProviderZAI,
+		BaseURL:  "https://api.z.ai/api/paas/v4",
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"genesis/internal/core"
@@ -42,6 +43,8 @@ func (s *DashboardServer) Start(addr string) error {
 	http.HandleFunc("/api/goals", s.handleGoals)
 	http.HandleFunc("/api/archive", s.handleArchive)
 	http.HandleFunc("/api/events", s.handleEvents)
+	http.HandleFunc("/api/constitution", s.handleConstitution)
+	http.HandleFunc("/api/mission", s.handleMissionFile)
 	return http.ListenAndServe(addr, nil)
 }
 
@@ -97,16 +100,18 @@ func (s *DashboardServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	
 	mode := "Unknown"
 	generation := 0
+	var fitness []core.FitnessRecord
 	if s.engine != nil {
 		mode = s.engine.Mode.String()
 		generation = s.engine.Generation
+		fitness = s.engine.FitnessHist.GetHistory()
 	}
 	
 	status := map[string]interface{}{
 		"goals":      s.goals.AllGoals(),
 		"mode":       mode,
 		"generation": generation,
-		"fitness":    s.engine.FitnessHist.GetHistory(),
+		"fitness":    fitness,
 	}
 	json.NewEncoder(w).Encode(status)
 }
@@ -166,6 +171,47 @@ func (s *DashboardServer) handleGoals(w http.ResponseWriter, r *http.Request) {
 func (s *DashboardServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	s.tmpl.Execute(w, nil)
+}
+
+func (s *DashboardServer) handleConstitution(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/markdown")
+	if s.engine == nil {
+		http.Error(w, "Engine not available", http.StatusServiceUnavailable)
+		return
+	}
+	path := filepath.Join(s.engine.ProjectRoot, "mission", "constitution.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, "Constitution not found", http.StatusNotFound)
+		return
+	}
+	w.Write(data)
+}
+
+func (s *DashboardServer) handleMissionFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.engine == nil {
+		http.Error(w, "Engine not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	file := r.URL.Query().Get("file")
+	if file == "" {
+		file = "active.json"
+	}
+	
+	if strings.Contains(file, "..") || strings.Contains(file, "/") || strings.Contains(file, "\\") {
+		http.Error(w, "Invalid filename", http.StatusBadRequest)
+		return
+	}
+	
+	path := filepath.Join(s.engine.ProjectRoot, "mission", file)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	w.Write(data)
 }
 
 const dashboardTemplate = `<!DOCTYPE html>

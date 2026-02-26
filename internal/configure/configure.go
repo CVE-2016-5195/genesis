@@ -33,15 +33,18 @@ func Run(projectRoot string) {
 	fmt.Println()
 	fmt.Println("    1) Local OpenAI-compatible (Ollama, LMStudio, vLLM, etc.)")
 	fmt.Println("    2) Kimi Code (api.kimi.com)")
+	fmt.Println("    3) z.ai (api.z.ai)")
 	fmt.Println()
 
-	choice := prompt(scanner, "  Choice [1/2]: ")
+	choice := prompt(scanner, "  Choice [1/2/3]: ")
 
 	switch choice {
 	case "1":
 		cfg = configureLocal(scanner, cfg)
 	case "2":
 		cfg = configureKimiCode(scanner, cfg)
+	case "3":
+		cfg = configureZAI(scanner, cfg)
 	default:
 		fmt.Println("  Invalid choice. Aborting.")
 		return
@@ -154,6 +157,47 @@ func configureKimiCode(scanner *bufio.Scanner, current config.Config) config.Con
 		fmt.Println("  Please check your API key and try again.")
 		fmt.Println()
 		fmt.Println("  You can still enter a model name manually.")
+
+		model := prompt(scanner, "  Model: ")
+		if model == "" {
+			fmt.Println("  Model is required. Aborting.")
+			os.Exit(1)
+		}
+		cfg.Model = model
+		return cfg
+	}
+
+	cfg.Model = selectModel(scanner, models, current.Model)
+	return cfg
+}
+
+func configureZAI(scanner *bufio.Scanner, current config.Config) config.Config {
+	cfg := config.ZAIDefaults()
+
+	fmt.Println()
+	fmt.Println("  z.ai setup")
+	fmt.Println()
+
+	// API key is required
+	fmt.Println("  Enter your z.ai API key:")
+	key := prompt(scanner, "  Key: ")
+	if key == "" {
+		fmt.Println("  API key is required for z.ai. Aborting.")
+		os.Exit(1)
+	}
+	cfg.APIKey = key
+
+	// Try to connect and list models
+	fmt.Println()
+	fmt.Println("  Connecting to z.ai...")
+
+	client := llm.NewClient(cfg)
+	models, err := client.ListModels()
+	if err != nil {
+		fmt.Printf("  Could not list models: %v\n", err)
+		fmt.Println("  This is expected if z.ai does not expose a /models endpoint.")
+		fmt.Println()
+		fmt.Println("  Enter a model name manually:")
 
 		model := prompt(scanner, "  Model: ")
 		if model == "" {

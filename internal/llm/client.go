@@ -51,19 +51,33 @@ type ApproachResponse struct {
 
 // Client talks to an OpenAI-compatible LLM backend.
 type Client struct {
-	BaseURL string // e.g. "http://localhost:11434/v1" or "https://api.kimi.com/coding/v1"
-	APIKey  string // empty for local, required for Kimi Code
-	Model   string
-	Timeout time.Duration
+	BaseURL  string // e.g. "http://localhost:11434/v1" or "https://api.z.ai/api/paas/v4"
+	APIKey   string // empty for local, required for Kimi Code and z.ai
+	Model    string
+	Provider config.ProviderType // used for provider-specific headers
+	Timeout  time.Duration
 }
 
 // NewClient creates a client from a config.
 func NewClient(cfg config.Config) *Client {
 	return &Client{
-		BaseURL: cfg.BaseURL,
-		APIKey:  cfg.APIKey,
-		Model:   cfg.Model,
-		Timeout: 600 * time.Second,
+		BaseURL:  cfg.BaseURL,
+		APIKey:   cfg.APIKey,
+		Model:    cfg.Model,
+		Provider: cfg.Provider,
+		Timeout:  600 * time.Second,
+	}
+}
+
+// setProviderHeaders sets provider-specific HTTP headers on a request.
+func (c *Client) setProviderHeaders(req *http.Request) {
+	req.Header.Set("Content-Type", "application/json")
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+	// Kimi Code requires a specific User-Agent or returns 403.
+	if c.Provider == config.ProviderKimiCode {
+		req.Header.Set("User-Agent", "KimiCLI/1.0")
 	}
 }
 
@@ -210,11 +224,7 @@ func (c *Client) chatCompletion(systemPrompt, userPrompt string, temperature flo
 	if err != nil {
 		return MutationPlan{}, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "KimiCLI/1.0")
-	if c.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	}
+	c.setProviderHeaders(req)
 
 	httpClient := &http.Client{Timeout: c.Timeout}
 	resp, err := httpClient.Do(req)
@@ -263,10 +273,7 @@ func (c *Client) ListModels() ([]ModelInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("User-Agent", "KimiCLI/1.0")
-	if c.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	}
+	c.setProviderHeaders(req)
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	resp, err := httpClient.Do(req)
@@ -359,11 +366,7 @@ func (c *Client) chatCompletionRaw(systemPrompt, userPrompt string, temperature 
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "KimiCLI/1.0")
-	if c.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	}
+	c.setProviderHeaders(req)
 
 	httpClient := &http.Client{Timeout: c.Timeout}
 	resp, err := httpClient.Do(req)
