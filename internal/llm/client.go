@@ -124,7 +124,7 @@ Rules:
 - Ensure all Go code compiles. Use only stdlib unless adding a dependency is clearly justified.
 - Never output anything except valid JSON.`
 
-// RequestMutationPlans asks the LLM for N candidate mutation plans.
+// RequestMutationPlans asks the LLM for N candidate mutation plans in parallel.
 func (c *Client) RequestMutationPlans(goals string, version int, fitness float64, sourceContext string, n int) ([]MutationPlan, error) {
 	systemPrompt := fmt.Sprintf(systemPromptTemplate, goals, version, fitness)
 
@@ -134,17 +134,35 @@ func (c *Client) RequestMutationPlans(goals string, version int, fitness float64
 
 Generate a mutation plan to advance the highest-priority goal. Make practical, compilable changes.`, sourceContext)
 
-	var plans []MutationPlan
+	type result struct {
+		index int
+		plan  MutationPlan
+		err   error
+	}
+
+	results := make(chan result, n)
 
 	for i := 0; i < n; i++ {
-		temp := 0.7 + float64(i)*0.1 // vary temperature across candidates
+		go func(idx int) {
+			temp := 0.7 + float64(idx)*0.1
+			fmt.Printf("[llm] Candidate %d: requesting (temp=%.1f)...\n", idx, temp)
+			plan, err := c.chatCompletion(systemPrompt, userPrompt, temp)
+			if err != nil {
+				fmt.Printf("[llm] Candidate %d: failed: %v\n", idx, err)
+			} else {
+				fmt.Printf("[llm] Candidate %d: received response\n", idx)
+			}
+			results <- result{index: idx, plan: plan, err: err}
+		}(i)
+	}
 
-		plan, err := c.chatCompletion(systemPrompt, userPrompt, temp)
-		if err != nil {
-			fmt.Printf("[llm] Candidate %d failed: %v\n", i, err)
+	var plans []MutationPlan
+	for i := 0; i < n; i++ {
+		r := <-results
+		if r.err != nil {
 			continue
 		}
-		plans = append(plans, plan)
+		plans = append(plans, r.plan)
 	}
 
 	if len(plans) == 0 {
