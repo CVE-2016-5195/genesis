@@ -50,7 +50,7 @@ func NewClient(cfg config.Config) *Client {
 		BaseURL: cfg.BaseURL,
 		APIKey:  cfg.APIKey,
 		Model:   cfg.Model,
-		Timeout: 120 * time.Second,
+		Timeout: 600 * time.Second,
 	}
 }
 
@@ -60,7 +60,6 @@ type chatRequest struct {
 	Model          string        `json:"model"`
 	Messages       []chatMessage `json:"messages"`
 	Temperature    float64       `json:"temperature,omitempty"`
-	MaxTokens      int           `json:"max_tokens,omitempty"`
 	ResponseFormat *respFormat   `json:"response_format,omitempty"`
 }
 
@@ -164,7 +163,6 @@ func (c *Client) chatCompletion(systemPrompt, userPrompt string, temperature flo
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: temperature,
-		MaxTokens:   4096,
 		ResponseFormat: &respFormat{
 			Type: "json_object",
 		},
@@ -180,6 +178,7 @@ func (c *Client) chatCompletion(systemPrompt, userPrompt string, temperature flo
 		return MutationPlan{}, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "KimiCLI/1.0")
 	if c.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	}
@@ -231,6 +230,7 @@ func (c *Client) ListModels() ([]ModelInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+	req.Header.Set("User-Agent", "KimiCLI/1.0")
 	if c.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	}
