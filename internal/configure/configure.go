@@ -28,6 +28,7 @@ func Run(projectRoot string) {
 	fmt.Println()
 
 	showCurrent(cfg)
+	showStoredProviders(cfg)
 
 	fmt.Println("  Select LLM provider:")
 	fmt.Println()
@@ -38,17 +39,25 @@ func Run(projectRoot string) {
 
 	choice := prompt(scanner, "  Choice [1/2/3]: ")
 
+	var provider config.ProviderType
+	var pc config.ProviderConfig
+
 	switch choice {
 	case "1":
-		cfg = configureLocal(scanner, cfg)
+		provider = config.ProviderLocal
+		pc = configureProvider(scanner, cfg, provider, "Local OpenAI-compatible", config.LocalDefaults())
 	case "2":
-		cfg = configureKimiCode(scanner, cfg)
+		provider = config.ProviderKimiCode
+		pc = configureProvider(scanner, cfg, provider, "Kimi Code", config.KimiCodeDefaults())
 	case "3":
-		cfg = configureZAI(scanner, cfg)
+		provider = config.ProviderZAI
+		pc = configureProvider(scanner, cfg, provider, "z.ai", config.ZAIDefaults())
 	default:
 		fmt.Println("  Invalid choice. Aborting.")
 		return
 	}
+
+	cfg.SetProvider(provider, pc)
 
 	if err := config.Save(projectRoot, cfg); err != nil {
 		fmt.Printf("\n  ERROR: Failed to save config: %v\n", err)
@@ -62,138 +71,132 @@ func Run(projectRoot string) {
 }
 
 func showCurrent(cfg config.Config) {
-	fmt.Println("  Current configuration:")
-	fmt.Printf("    Provider : %s\n", cfg.Provider)
-	fmt.Printf("    Endpoint : %s\n", cfg.BaseURL)
-	if cfg.APIKey != "" {
-		fmt.Printf("    API Key  : %s\n", maskKey(cfg.APIKey))
+	pt, pc := cfg.ActiveConfig()
+	fmt.Println("  Active configuration:")
+	fmt.Printf("    Provider : %s\n", pt)
+	fmt.Printf("    Endpoint : %s\n", pc.BaseURL)
+	if pc.APIKey != "" {
+		fmt.Printf("    API Key  : %s\n", maskKey(pc.APIKey))
 	}
-	fmt.Printf("    Model    : %s\n", cfg.Model)
+	fmt.Printf("    Model    : %s\n", pc.Model)
 	fmt.Println()
 }
 
-func configureLocal(scanner *bufio.Scanner, current config.Config) config.Config {
-	cfg := config.Config{Provider: config.ProviderLocal}
-
+func showStoredProviders(cfg config.Config) {
+	if len(cfg.Providers) <= 1 {
+		return
+	}
+	fmt.Println("  Stored providers:")
+	for pt, pc := range cfg.Providers {
+		active := " "
+		if pt == cfg.Active {
+			active = "*"
+		}
+		keyInfo := ""
+		if pc.APIKey != "" {
+			keyInfo = ", key: " + maskKey(pc.APIKey)
+		}
+		modelInfo := ""
+		if pc.Model != "" {
+			modelInfo = ", model: " + pc.Model
+		}
+		fmt.Printf("    %s %s (%s%s%s)\n", active, pt, pc.BaseURL, keyInfo, modelInfo)
+	}
 	fmt.Println()
-	fmt.Println("  Local OpenAI-compatible endpoint setup")
+}
+
+// configureProvider handles setup for any provider type. It checks if there's
+// a stored config for this provider and offers to reuse the API key.
+func configureProvider(scanner *bufio.Scanner, cfg config.Config, provider config.ProviderType, label string, defaults config.ProviderConfig) config.ProviderConfig {
+	fmt.Println()
+	fmt.Printf("  %s setup\n", label)
 	fmt.Println()
 
-	// If already configured for local, offer to keep current settings and skip to model
-	if current.Provider == config.ProviderLocal && current.BaseURL != "" {
-		cfg.BaseURL = current.BaseURL
-		cfg.APIKey = current.APIKey
+	// Check if we already have stored config for this provider
+	stored, hasStored := cfg.GetProvider(provider)
 
-		if current.APIKey != "" {
-			fmt.Printf("  Current endpoint: %s\n", current.BaseURL)
-			fmt.Printf("  Current API key:  %s\n", maskKey(current.APIKey))
-			fmt.Println()
-			keep := prompt(scanner, "  Keep current endpoint and key? [Y/n]: ")
-			if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
-				fmt.Println("  Keeping current settings. Jumping to model selection...")
-				return selectModelForConfig(scanner, cfg, current.Model)
-			}
+	// Start from defaults, then overlay stored values
+	pc := defaults
+	if hasStored {
+		if stored.BaseURL != "" {
+			pc.BaseURL = stored.BaseURL
+		}
+		if stored.APIKey != "" {
+			pc.APIKey = stored.APIKey
+		}
+		if stored.Model != "" {
+			pc.Model = stored.Model
 		}
 	}
 
-	defaultURL := "http://localhost:11434/v1"
-	if current.Provider == config.ProviderLocal && current.BaseURL != "" {
-		defaultURL = current.BaseURL
+	// If we have a stored key, offer to keep everything and jump to model selection
+	if pc.APIKey != "" {
+		fmt.Printf("  Stored endpoint: %s\n", pc.BaseURL)
+		fmt.Printf("  Stored API key:  %s\n", maskKey(pc.APIKey))
+		if pc.Model != "" {
+			fmt.Printf("  Stored model:    %s\n", pc.Model)
+		}
+		fmt.Println()
+		keep := prompt(scanner, "  Keep stored settings? [Y/n]: ")
+		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
+			fmt.Println("  Keeping stored settings. Jumping to model selection...")
+			return selectModelForProvider(scanner, provider, pc)
+		}
+	} else if provider == config.ProviderLocal && pc.BaseURL != "" {
+		// Local provider may not need a key — offer to keep the URL
+		fmt.Printf("  Stored endpoint: %s\n", pc.BaseURL)
+		fmt.Println()
+		keep := prompt(scanner, "  Keep stored endpoint? [Y/n]: ")
+		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
+			fmt.Println("  Keeping stored endpoint. Jumping to model selection...")
+			return selectModelForProvider(scanner, provider, pc)
+		}
 	}
 
-	fmt.Printf("  Enter base URL (default: %s)\n", defaultURL)
+	// Prompt for base URL
+	fmt.Printf("  Enter base URL (default: %s)\n", pc.BaseURL)
 	url := prompt(scanner, "  URL: ")
-	if url == "" {
-		url = defaultURL
+	if url != "" {
+		pc.BaseURL = strings.TrimRight(url, "/")
 	}
-	// Normalize: strip trailing slash
-	cfg.BaseURL = strings.TrimRight(url, "/")
 
-	// Optional API key for local endpoints that require one
-	fmt.Println()
-	fmt.Println("  API key (leave empty if not needed):")
-	key := prompt(scanner, "  Key: ")
-	cfg.APIKey = key
-
-	return selectModelForConfig(scanner, cfg, current.Model)
-}
-
-func configureKimiCode(scanner *bufio.Scanner, current config.Config) config.Config {
-	cfg := config.KimiCodeDefaults()
-
-	fmt.Println()
-	fmt.Println("  Kimi Code setup")
-	fmt.Println()
-
-	// If already configured for Kimi with an API key, offer to keep it
-	if current.Provider == config.ProviderKimiCode && current.APIKey != "" {
-		fmt.Printf("  Current API key: %s\n", maskKey(current.APIKey))
+	// Prompt for API key
+	if provider == config.ProviderLocal {
 		fmt.Println()
-		keep := prompt(scanner, "  Keep current API key? [Y/n]: ")
-		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
-			cfg.APIKey = current.APIKey
-			fmt.Println("  Keeping current key. Jumping to model selection...")
-			return selectModelForConfig(scanner, cfg, current.Model)
-		}
-	}
-
-	// API key is required
-	fmt.Println("  Enter your Kimi Code API key:")
-	key := prompt(scanner, "  Key: ")
-	if key == "" {
-		fmt.Println("  API key is required for Kimi Code. Aborting.")
-		os.Exit(1)
-	}
-	cfg.APIKey = key
-
-	return selectModelForConfig(scanner, cfg, current.Model)
-}
-
-func configureZAI(scanner *bufio.Scanner, current config.Config) config.Config {
-	cfg := config.ZAIDefaults()
-
-	fmt.Println()
-	fmt.Println("  z.ai setup")
-	fmt.Println()
-
-	// If already configured for z.ai with an API key, offer to keep it
-	if current.Provider == config.ProviderZAI && current.APIKey != "" {
-		fmt.Printf("  Current API key: %s\n", maskKey(current.APIKey))
+		fmt.Println("  API key (leave empty if not needed):")
+		key := prompt(scanner, "  Key: ")
+		pc.APIKey = key
+	} else {
 		fmt.Println()
-		keep := prompt(scanner, "  Keep current API key? [Y/n]: ")
-		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
-			cfg.APIKey = current.APIKey
-			fmt.Println("  Keeping current key. Jumping to model selection...")
-			return selectModelForConfig(scanner, cfg, current.Model)
+		fmt.Printf("  Enter your %s API key:\n", label)
+		key := prompt(scanner, "  Key: ")
+		if key == "" {
+			fmt.Printf("  API key is required for %s. Aborting.\n", label)
+			os.Exit(1)
 		}
+		pc.APIKey = key
 	}
 
-	// API key is required
-	fmt.Println("  Enter your z.ai API key:")
-	key := prompt(scanner, "  Key: ")
-	if key == "" {
-		fmt.Println("  API key is required for z.ai. Aborting.")
-		os.Exit(1)
-	}
-	cfg.APIKey = key
-
-	return selectModelForConfig(scanner, cfg, current.Model)
+	return selectModelForProvider(scanner, provider, pc)
 }
 
-// selectModelForConfig connects to the endpoint, lists models, and lets the
-// user pick one. Returns cfg with the Model field set.
-func selectModelForConfig(scanner *bufio.Scanner, cfg config.Config, currentModel string) config.Config {
+// selectModelForProvider connects to the endpoint and lets the user pick a model.
+func selectModelForProvider(scanner *bufio.Scanner, provider config.ProviderType, pc config.ProviderConfig) config.ProviderConfig {
 	fmt.Println()
 	fmt.Println("  Connecting to endpoint...")
 
-	client := llm.NewClient(cfg)
+	// Build a temporary Config to create the LLM client
+	tmpCfg := config.Config{}
+	tmpCfg.SetProvider(provider, pc)
+	client := llm.NewClient(tmpCfg)
+
 	models, err := client.ListModels()
 	if err != nil {
 		fmt.Printf("  Could not list models: %v\n", err)
 		fmt.Println("  You can still enter a model name manually.")
 		fmt.Println()
 
-		defaultModel := currentModel
+		defaultModel := pc.Model
 		if defaultModel == "" {
 			defaultModel = "qwen2.5-coder:14b"
 		}
@@ -202,12 +205,12 @@ func selectModelForConfig(scanner *bufio.Scanner, cfg config.Config, currentMode
 		if model == "" {
 			model = defaultModel
 		}
-		cfg.Model = model
-		return cfg
+		pc.Model = model
+		return pc
 	}
 
-	cfg.Model = selectModel(scanner, models, currentModel)
-	return cfg
+	pc.Model = selectModel(scanner, models, pc.Model)
+	return pc
 }
 
 func selectModel(scanner *bufio.Scanner, models []llm.ModelInfo, currentModel string) string {
