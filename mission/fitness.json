@@ -1,422 +1,62 @@
 [
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:08:48.159623202Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-26T19:28:42.164374341Z",
+    "details": "binary size: 11211464 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3345(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:10:41.719563474Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-26T19:28:43.434818188Z",
+    "details": "binary size: 11211464 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3345(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:13:21.834593689Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-26T19:28:44.651061686Z",
+    "details": "binary size: 11211464 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3345(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:15:32.53074092Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-26T19:38:57.475780677Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3445(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:17:45.289625411Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-27T11:04:37.978166122Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3445(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:19:53.336041701Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-27T11:04:39.206000325Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3445(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:22:05.770272894Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-27T11:14:52.159666889Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3445(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:24:20.182585878Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 82.5,
+    "timestamp": "2026-02-27T11:14:53.70956757Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=8(+4.0),files=12(+3.0),has_tests(+3),test_files=1(+0.5),lines=3445(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:24:32.204271238Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
+    "score": 83.25,
+    "timestamp": "2026-02-27T11:25:06.562803629Z",
+    "details": "binary size: 11155135 bytes; go vet: passed; tests: passed; quality: packages=9(+4.5),files=13(+3.2),has_tests(+3),test_files=1(+0.5),lines=3682(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   },
   {
     "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:26:43.548425993Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:29:11.756565977Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:31:24.30765547Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 88.5,
-    "timestamp": "2026-02-26T18:33:53.229728547Z",
-    "details": "binary size: 11171789 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=11(+5.5),lines=2829(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:34:51.233777331Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:35:52.212048999Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:37:44.10046522Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:37:56.224632895Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:38:08.941585111Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:38:22.213026801Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:38:34.10067653Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:38:46.00218715Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:39:00.300092612Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:39:12.884511499Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:39:24.740306976Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:39:36.562493789Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:39:48.383506309Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:40:00.583530789Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:40:13.109331763Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:40:25.202871561Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:40:37.185389393Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:40:49.024552568Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:41:00.948611456Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:41:12.836626869Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:41:24.815211914Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:41:36.896607903Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:41:49.621367907Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:42:01.953795631Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:42:14.748310444Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:42:26.758493587Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:42:38.810648797Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:42:50.982065654Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:43:03.359448632Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:43:15.879235984Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:43:28.483660681Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:43:40.316629115Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:43:52.255877758Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:44:04.87717373Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:44:17.465696508Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:44:29.661418891Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:44:41.42778294Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:44:53.868542556Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:45:06.124487711Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:45:18.736304814Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:45:31.241531013Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:45:43.901519175Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:45:55.848262503Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:46:08.442530005Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:46:20.793249459Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:46:33.061241547Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:46:45.296683389Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:46:57.736521209Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:47:10.250379072Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:47:22.829101251Z",
-    "details": "binary size: 11115615 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:53:10.728420504Z",
-    "details": "binary size: 11177237 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=2962(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T18:59:52.447568338Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T19:01:15.579017771Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T19:02:28.765860067Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T19:02:56.369604554Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T19:02:57.640788313Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
-  },
-  {
-    "generation": 1,
-    "score": 94,
-    "timestamp": "2026-02-26T19:13:08.53172464Z",
-    "details": "binary size: 11180279 bytes; go vet: passed; tests: passed; quality: packages=8(+8),files=12(+6.0),has_tests(+5),lines=3018(+5); features: http_server(+5),port_active(+5)"
+    "score": 83.25,
+    "timestamp": "2026-02-27T11:35:19.435003953Z",
+    "details": "binary size: 11172723 bytes; go vet: passed; tests: passed; quality: packages=9(+4.5),files=13(+3.2),has_tests(+3),test_files=1(+0.5),lines=3691(+3),imports=15(+5.0); features: http_server(+4),port_active(+4),concurrency(5 patterns,+4),config_system(+3),cli_args(+3),error_wrapping(+3),file_io(+3)"
   }
 ]

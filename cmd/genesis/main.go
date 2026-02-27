@@ -48,6 +48,8 @@ func main() {
 		}
 	}()
 
+	// Engine owns stdin exclusively — no other goroutine may read from os.Stdin.
+	// The web dashboard uses HTTP/SSE only. This prevents stdin race conditions.
 	engine.Run()
 }
 

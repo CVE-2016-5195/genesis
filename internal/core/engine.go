@@ -15,6 +15,18 @@ import (
 	"genesis/internal/llm"
 )
 
+// ANSI color codes for terminal output.
+// These live in the engine because the engine owns all terminal I/O.
+const (
+	cReset  = "\033[0m"
+	cGreen  = "\033[32m"
+	cYellow = "\033[33m"
+	cRed    = "\033[31m"
+	cBlue   = "\033[34m"
+	cCyan   = "\033[36m"
+	cBold   = "\033[1m"
+)
+
 // Mode represents the agent's operating mode.
 type Mode int
 
@@ -114,11 +126,11 @@ func (e *Engine) Run() {
 
 func (e *Engine) printBanner() {
 	fmt.Println()
-	fmt.Println("  ╔═══════════════════════════════════════╗")
-	fmt.Println("  ║     GENESIS-HS  v0.1                  ║")
-	fmt.Println("  ║     Human-Steered Self-Improving Go   ║")
-	fmt.Printf("  ║     Generation: %-22d ║\n", e.Generation)
-	fmt.Println("  ╚═══════════════════════════════════════╝")
+	fmt.Println("  " + cCyan + cBold + "╔═══════════════════════════════════════╗" + cReset)
+	fmt.Println("  " + cCyan + cBold + "║     GENESIS-HS  v0.1                  ║" + cReset)
+	fmt.Println("  " + cCyan + cBold + "║     Human-Steered Self-Improving Go   ║" + cReset)
+	fmt.Printf("  "+cCyan+cBold+"║     Generation: %-22d ║"+cReset+"\n", e.Generation)
+	fmt.Println("  " + cCyan + cBold + "╚═══════════════════════════════════════╝" + cReset)
 	fmt.Println()
 }
 
@@ -196,18 +208,19 @@ func (e *Engine) runPlanningPhase() error {
 }
 
 // runListenMode waits for user input on stdin.
+// IMPORTANT: This is the ONLY place that reads from os.Stdin during normal
+// operation (planning phase and stagnation handler also read stdin, but they
+// are called synchronously from the engine's main goroutine, never concurrently).
 func (e *Engine) runListenMode() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println()
-	fmt.Println("Goals:")
-	fmt.Print(e.Goals.GoalsSummary())
+	fmt.Printf("  "+cBold+"Mode:"+cReset+" %s | "+cBold+"Generation:"+cReset+" %d | "+cBold+"Active Goals:"+cReset+" %d\n", e.Mode.String(), e.Generation, e.Goals.Count())
 	fmt.Println()
-	fmt.Println("Commands: new goal: <description> | complete goal: <id> | goals | exit")
-	fmt.Println()
+	e.printHelp()
 
 	for {
-		fmt.Print("genesis> ")
+		fmt.Print(cCyan + cBold + "genesis> " + cReset)
 		if !scanner.Scan() {
 			break
 		}
@@ -218,35 +231,55 @@ func (e *Engine) runListenMode() {
 		}
 
 		switch {
+		case input == "status":
+			e.printStatus()
+
+		case input == "goals":
+			fmt.Println()
+			fmt.Println("  " + cCyan + cBold + "╔══════════════════════════════════════════════╗" + cReset)
+			fmt.Println("  " + cCyan + cBold + "║          GENESIS-HS GOALS                    ║" + cReset)
+			fmt.Println("  " + cCyan + cBold + "╚══════════════════════════════════════════════╝" + cReset)
+			fmt.Println()
+			fmt.Print(e.Goals.GoalsSummary())
+			fmt.Println()
+			fmt.Printf("  "+cBold+"Active goals:"+cReset+" %d\n", e.Goals.Count())
+			fmt.Println()
+
+		case input == "history":
+			e.printFitnessHistory()
+
+		case input == "help":
+			e.printHelp()
+
 		case strings.HasPrefix(input, "new goal:"):
 			desc := strings.TrimSpace(strings.TrimPrefix(input, "new goal:"))
 			if desc == "" {
-				fmt.Println("  Usage: new goal: <description>")
+				fmt.Println("  " + cRed + "ERROR:" + cReset + " Usage: new goal: <description>")
 				continue
 			}
 			goal, err := e.Goals.AddGoal(desc, e.Generation)
 			if err != nil {
-				fmt.Printf("  ERROR: %v\n", err)
+				fmt.Printf("  "+cRed+"ERROR:"+cReset+" %v\n", err)
 				continue
 			}
-			fmt.Printf("  Goal #%d added: %s\n", goal.ID, desc)
+			fmt.Printf("  "+cGreen+"Goal #%d added:"+cReset+" %s\n", goal.ID, desc)
 
 			// Run planning phase for the new goal
 			if e.Goals.NeedsPlanning() {
 				fmt.Println("  Running planning phase...")
 				if err := e.runPlanningPhase(); err != nil {
-					fmt.Printf("  Planning error: %v\n", err)
+					fmt.Printf("  "+cRed+"Planning error:"+cReset+" %v\n", err)
 					continue
 				}
 			}
 
-			fmt.Println("  Switching to Forge Mode...")
+			fmt.Println("  " + cGreen + "Switching to Forge Mode..." + cReset)
 
 			// Try to restart via binary; fall back to in-process forge
 			binPath := filepath.Join(e.ProjectRoot, "genesis")
 			if _, err := os.Stat(binPath); err == nil {
 				if err := RestartSelf(e.ProjectRoot); err != nil {
-					fmt.Printf("  [warn] Restart failed: %v. Running forge in-process.\n", err)
+					fmt.Printf("  "+cYellow+"[warn] Restart failed: %v. Running forge in-process."+cReset+"\n", err)
 				}
 			}
 			// If RestartSelf succeeded, we never reach here.
@@ -259,27 +292,38 @@ func (e *Engine) runListenMode() {
 			idStr := strings.TrimSpace(strings.TrimPrefix(input, "complete goal:"))
 			var goalID int
 			if _, err := fmt.Sscanf(idStr, "%d", &goalID); err != nil {
-				fmt.Println("  Usage: complete goal: <id>")
+				fmt.Println("  " + cRed + "ERROR:" + cReset + " Usage: complete goal: <id>")
 				continue
 			}
 			if err := e.Goals.SetStatus(goalID, StatusCompleted); err != nil {
-				fmt.Printf("  ERROR: %v\n", err)
+				fmt.Printf("  "+cRed+"ERROR:"+cReset+" %v\n", err)
 			} else {
-				fmt.Printf("  Goal #%d marked as completed.\n", goalID)
+				fmt.Printf("  "+cGreen+"Goal #%d marked as completed."+cReset+"\n", goalID)
 			}
 
-		case input == "goals":
-			fmt.Println()
-			fmt.Println("Goals:")
-			fmt.Print(e.Goals.GoalsSummary())
+		case strings.HasPrefix(input, "mode "):
+			modeStr := strings.TrimSpace(strings.TrimPrefix(input, "mode "))
+			if modeStr == "listen" {
+				e.Mode = ModeListen
+				fmt.Println("  " + cGreen + "Switched to Listen Mode." + cReset)
+			} else if modeStr == "forge" {
+				e.Mode = ModeForge
+				fmt.Println("  " + cGreen + "Switched to Forge Mode." + cReset)
+				if e.Goals.HasPendingOrInProgress() {
+					e.runForgeMode()
+					return
+				}
+			} else {
+				fmt.Println("  " + cRed + "ERROR:" + cReset + " Usage: mode listen | mode forge")
+			}
 			fmt.Println()
 
-		case input == "exit":
-			fmt.Println("  Goodbye.")
+		case input == "exit" || input == "quit":
+			fmt.Println("  " + cGreen + "Goodbye." + cReset)
 			os.Exit(0)
 
 		default:
-			fmt.Println("  Unknown command. Try: new goal: <desc> | complete goal: <id> | goals | exit")
+			fmt.Println("  " + cYellow + "Unknown command. Type 'help' for available commands." + cReset)
 		}
 	}
 }
@@ -645,4 +689,82 @@ func (e *Engine) runOneEvolution() (bool, error) {
 
 	fmt.Println("[evo] New generation deployed successfully!")
 	return true, nil
+}
+
+// printStatus displays current status with fitness information.
+func (e *Engine) printStatus() {
+	fmt.Println()
+	fmt.Println("  " + cCyan + cBold + "╔══════════════════════════════════════════════╗" + cReset)
+	fmt.Println("  " + cCyan + cBold + "║          GENESIS-HS STATUS                   ║" + cReset)
+	fmt.Println("  " + cCyan + cBold + "╚══════════════════════════════════════════════╝" + cReset)
+	fmt.Println()
+	fmt.Printf("  "+cBold+"Mode:"+cReset+"        %s\n", e.Mode.String())
+	fmt.Printf("  "+cBold+"Generation:"+cReset+"  %d\n", e.Generation)
+	fmt.Printf("  "+cBold+"Active Goals:"+cReset+" %d\n", e.Goals.Count())
+	fmt.Println()
+	fmt.Println("  " + cBold + "Goals:" + cReset)
+	fmt.Print(e.Goals.GoalsSummary())
+
+	latest := e.FitnessHist.GetLatest()
+	if latest != nil {
+		fmt.Println()
+		fmt.Println("  " + cBold + "Fitness History:" + cReset)
+		fmt.Printf("    "+cGreen+"Latest:"+cReset+" %.2f at Gen %d (%s)\n", latest.Score, latest.Generation, latest.Timestamp.Format("15:04:05"))
+
+		if len(e.FitnessHist.GetHistory()) >= 2 {
+			history := e.FitnessHist.GetHistory()
+			first := history[0].Score
+			last := history[len(history)-1].Score
+			improvement := ((last - first) / first) * 100
+			fmt.Printf("    "+cCyan+"Improvement:"+cReset+" %.1f%%\n", improvement)
+		}
+	} else {
+		fmt.Println()
+		fmt.Println("  " + cYellow + "Fitness History:" + cReset + " No history yet.")
+	}
+	fmt.Println()
+}
+
+// printFitnessHistory displays the full fitness history with formatting.
+func (e *Engine) printFitnessHistory() {
+	fmt.Println()
+	fmt.Println("  " + cCyan + cBold + "╔══════════════════════════════════════════════╗" + cReset)
+	fmt.Println("  " + cCyan + cBold + "║          GENESIS-HS FITNESS HISTORY          ║" + cReset)
+	fmt.Println("  " + cCyan + cBold + "╚══════════════════════════════════════════════╝" + cReset)
+	fmt.Println()
+
+	history := e.FitnessHist.GetHistory()
+	if len(history) == 0 {
+		fmt.Println("  " + cYellow + "No fitness history recorded." + cReset)
+	} else {
+		fmt.Println("  " + cBold + "Fitness History:" + cReset)
+		for _, r := range history {
+			fmt.Printf("    "+cGreen+"Gen %d:"+cReset+" %.2f (%s)\n", r.Generation, r.Score, r.Timestamp.Format("15:04:05"))
+			if r.Details != "" {
+				fmt.Printf("      "+cCyan+cBold+"Details:"+cReset+" %s\n", r.Details)
+			}
+		}
+		if len(history) >= 2 {
+			first := history[0].Score
+			last := history[len(history)-1].Score
+			change := ((last - first) / first) * 100
+			fmt.Printf("\n  "+cCyan+"Total improvement:"+cReset+" %.1f%%\n", change)
+		}
+	}
+	fmt.Println()
+}
+
+// printHelp displays available commands.
+func (e *Engine) printHelp() {
+	fmt.Println()
+	fmt.Println("  " + cBold + "Commands:" + cReset)
+	fmt.Println("    " + cGreen + "status" + cReset + "              - Show detailed status and fitness")
+	fmt.Println("    " + cGreen + "goals" + cReset + "               - List all goals")
+	fmt.Println("    " + cGreen + "history" + cReset + "             - Show fitness history")
+	fmt.Println("    " + cGreen + "help" + cReset + "                - Show this help")
+	fmt.Println("    " + cGreen + "new goal: <desc>" + cReset + "    - Create a new goal")
+	fmt.Println("    " + cGreen + "complete goal: <id>" + cReset + " - Mark goal as complete")
+	fmt.Println("    " + cGreen + "mode listen/forge" + cReset + "   - Switch operating mode")
+	fmt.Println("    " + cGreen + "exit" + cReset + "                - Exit the agent")
+	fmt.Println()
 }

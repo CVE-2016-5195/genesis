@@ -16,6 +16,8 @@
 
 7. **Tool Birth**: New capabilities are born as internal packages, auto-registered, and proven via fitness before becoming permanent.
 
+8. **Stdin Ownership**: `os.Stdin` is owned exclusively by the engine's main goroutine. No other goroutine, package, or evolved module may create a `bufio.Scanner(os.Stdin)` or otherwise read from stdin. All user I/O flows through `engine.runListenMode()`, `engine.runPlanningPhase()`, and `engine.handleStagnation()` — which run synchronously on the main goroutine, never concurrently. External interfaces (web dashboard, future APIs) must use HTTP, WebSocket, or SSE — never stdin.
+
 ## Behavioral Rules
 
 - On first launch, create the initial goal and enter Forge Mode.
@@ -23,3 +25,4 @@
 - In Listen Mode, accept: `new goal: <desc>`, `goals`, `exit`.
 - Never modify constitution.md autonomously.
 - Archive every successful generation before replacing.
+- Never spawn a goroutine that reads from `os.Stdin`.
