@@ -4,6 +4,7 @@
 
 # Runtime state
 mission/active.json
+mission/fitness.json
 config.json
 
 # Archive (local only)
