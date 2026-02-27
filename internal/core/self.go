@@ -336,6 +336,20 @@ func VirginReset(projectRoot string) {
 	if keepConfig {
 		fmt.Println("  LLM configuration preserved (config.json).")
 	}
+
+	// Auto-build the virgin binary
+	fmt.Println()
+	fmt.Println("  Building virgin binary...")
+	binPath := filepath.Join(projectRoot, "genesis")
+	if err := BuildBinary(projectRoot, binPath); err != nil {
+		fmt.Printf("  [warn] Build failed: %v\n", err)
+		fmt.Println("  You can build manually with: go build -o genesis ./cmd/genesis")
+	} else {
+		info, _ := os.Stat(binPath)
+		fmt.Printf("  Built: %s (%d bytes)\n", binPath, info.Size())
+	}
+
+	fmt.Println()
 	fmt.Println("  Run './genesis' to start fresh.")
 	fmt.Println()
 }

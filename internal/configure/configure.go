@@ -66,11 +66,7 @@ func showCurrent(cfg config.Config) {
 	fmt.Printf("    Provider : %s\n", cfg.Provider)
 	fmt.Printf("    Endpoint : %s\n", cfg.BaseURL)
 	if cfg.APIKey != "" {
-		masked := cfg.APIKey
-		if len(masked) > 8 {
-			masked = masked[:4] + "..." + masked[len(masked)-4:]
-		}
-		fmt.Printf("    API Key  : %s\n", masked)
+		fmt.Printf("    API Key  : %s\n", maskKey(cfg.APIKey))
 	}
 	fmt.Printf("    Model    : %s\n", cfg.Model)
 	fmt.Println()
@@ -82,6 +78,23 @@ func configureLocal(scanner *bufio.Scanner, current config.Config) config.Config
 	fmt.Println()
 	fmt.Println("  Local OpenAI-compatible endpoint setup")
 	fmt.Println()
+
+	// If already configured for local, offer to keep current settings and skip to model
+	if current.Provider == config.ProviderLocal && current.BaseURL != "" {
+		cfg.BaseURL = current.BaseURL
+		cfg.APIKey = current.APIKey
+
+		if current.APIKey != "" {
+			fmt.Printf("  Current endpoint: %s\n", current.BaseURL)
+			fmt.Printf("  Current API key:  %s\n", maskKey(current.APIKey))
+			fmt.Println()
+			keep := prompt(scanner, "  Keep current endpoint and key? [Y/n]: ")
+			if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
+				fmt.Println("  Keeping current settings. Jumping to model selection...")
+				return selectModelForConfig(scanner, cfg, current.Model)
+			}
+		}
+	}
 
 	defaultURL := "http://localhost:11434/v1"
 	if current.Provider == config.ProviderLocal && current.BaseURL != "" {
@@ -102,32 +115,7 @@ func configureLocal(scanner *bufio.Scanner, current config.Config) config.Config
 	key := prompt(scanner, "  Key: ")
 	cfg.APIKey = key
 
-	// Try to connect and list models
-	fmt.Println()
-	fmt.Println("  Connecting to endpoint...")
-
-	client := llm.NewClient(cfg)
-	models, err := client.ListModels()
-	if err != nil {
-		fmt.Printf("  Could not connect: %v\n", err)
-		fmt.Println("  You can still enter a model name manually.")
-		fmt.Println()
-
-		defaultModel := "qwen2.5-coder:14b"
-		if current.Model != "" {
-			defaultModel = current.Model
-		}
-		fmt.Printf("  Enter model name (default: %s)\n", defaultModel)
-		model := prompt(scanner, "  Model: ")
-		if model == "" {
-			model = defaultModel
-		}
-		cfg.Model = model
-		return cfg
-	}
-
-	cfg.Model = selectModel(scanner, models, current.Model)
-	return cfg
+	return selectModelForConfig(scanner, cfg, current.Model)
 }
 
 func configureKimiCode(scanner *bufio.Scanner, current config.Config) config.Config {
@@ -136,6 +124,18 @@ func configureKimiCode(scanner *bufio.Scanner, current config.Config) config.Con
 	fmt.Println()
 	fmt.Println("  Kimi Code setup")
 	fmt.Println()
+
+	// If already configured for Kimi with an API key, offer to keep it
+	if current.Provider == config.ProviderKimiCode && current.APIKey != "" {
+		fmt.Printf("  Current API key: %s\n", maskKey(current.APIKey))
+		fmt.Println()
+		keep := prompt(scanner, "  Keep current API key? [Y/n]: ")
+		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
+			cfg.APIKey = current.APIKey
+			fmt.Println("  Keeping current key. Jumping to model selection...")
+			return selectModelForConfig(scanner, cfg, current.Model)
+		}
+	}
 
 	// API key is required
 	fmt.Println("  Enter your Kimi Code API key:")
@@ -146,29 +146,7 @@ func configureKimiCode(scanner *bufio.Scanner, current config.Config) config.Con
 	}
 	cfg.APIKey = key
 
-	// Connect and list models
-	fmt.Println()
-	fmt.Println("  Connecting to Kimi Code...")
-
-	client := llm.NewClient(cfg)
-	models, err := client.ListModels()
-	if err != nil {
-		fmt.Printf("  Could not connect: %v\n", err)
-		fmt.Println("  Please check your API key and try again.")
-		fmt.Println()
-		fmt.Println("  You can still enter a model name manually.")
-
-		model := prompt(scanner, "  Model: ")
-		if model == "" {
-			fmt.Println("  Model is required. Aborting.")
-			os.Exit(1)
-		}
-		cfg.Model = model
-		return cfg
-	}
-
-	cfg.Model = selectModel(scanner, models, current.Model)
-	return cfg
+	return selectModelForConfig(scanner, cfg, current.Model)
 }
 
 func configureZAI(scanner *bufio.Scanner, current config.Config) config.Config {
@@ -177,6 +155,18 @@ func configureZAI(scanner *bufio.Scanner, current config.Config) config.Config {
 	fmt.Println()
 	fmt.Println("  z.ai setup")
 	fmt.Println()
+
+	// If already configured for z.ai with an API key, offer to keep it
+	if current.Provider == config.ProviderZAI && current.APIKey != "" {
+		fmt.Printf("  Current API key: %s\n", maskKey(current.APIKey))
+		fmt.Println()
+		keep := prompt(scanner, "  Keep current API key? [Y/n]: ")
+		if keep == "" || strings.ToLower(keep) == "y" || strings.ToLower(keep) == "yes" {
+			cfg.APIKey = current.APIKey
+			fmt.Println("  Keeping current key. Jumping to model selection...")
+			return selectModelForConfig(scanner, cfg, current.Model)
+		}
+	}
 
 	// API key is required
 	fmt.Println("  Enter your z.ai API key:")
@@ -187,28 +177,36 @@ func configureZAI(scanner *bufio.Scanner, current config.Config) config.Config {
 	}
 	cfg.APIKey = key
 
-	// Try to connect and list models
+	return selectModelForConfig(scanner, cfg, current.Model)
+}
+
+// selectModelForConfig connects to the endpoint, lists models, and lets the
+// user pick one. Returns cfg with the Model field set.
+func selectModelForConfig(scanner *bufio.Scanner, cfg config.Config, currentModel string) config.Config {
 	fmt.Println()
-	fmt.Println("  Connecting to z.ai...")
+	fmt.Println("  Connecting to endpoint...")
 
 	client := llm.NewClient(cfg)
 	models, err := client.ListModels()
 	if err != nil {
 		fmt.Printf("  Could not list models: %v\n", err)
-		fmt.Println("  This is expected if z.ai does not expose a /models endpoint.")
+		fmt.Println("  You can still enter a model name manually.")
 		fmt.Println()
-		fmt.Println("  Enter a model name manually:")
 
+		defaultModel := currentModel
+		if defaultModel == "" {
+			defaultModel = "qwen2.5-coder:14b"
+		}
+		fmt.Printf("  Enter model name (default: %s)\n", defaultModel)
 		model := prompt(scanner, "  Model: ")
 		if model == "" {
-			fmt.Println("  Model is required. Aborting.")
-			os.Exit(1)
+			model = defaultModel
 		}
 		cfg.Model = model
 		return cfg
 	}
 
-	cfg.Model = selectModel(scanner, models, current.Model)
+	cfg.Model = selectModel(scanner, models, currentModel)
 	return cfg
 }
 
@@ -265,4 +263,12 @@ func prompt(scanner *bufio.Scanner, label string) string {
 		return ""
 	}
 	return strings.TrimSpace(scanner.Text())
+}
+
+// maskKey returns a masked version of an API key for display.
+func maskKey(key string) string {
+	if len(key) > 8 {
+		return key[:4] + "..." + key[len(key)-4:]
+	}
+	return "****"
 }
